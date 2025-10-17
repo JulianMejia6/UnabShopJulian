@@ -21,25 +21,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-
-            val navController = rememberNavController()
-            val startDestination = "login"
-
-            NavHost(navController, startDestination) {
-                composable(route = "login") {
-                    LoginScreen()
-                }
-                composable(route = "register") {
-                    RegisterScreen()
-                }
-                composable(route = "home") {
-                    HomeScreen()
-                }
+            UnabShopJulianTheme {
+                NavigationApp()
             }
-
-            LoginScreen()
-
-
         }
     }
 }

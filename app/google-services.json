@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "717347251069",
+    "project_id": "unabshop-c5c15",
+    "storage_bucket": "unabshop-c5c15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:717347251069:android:8ad003fca52957459e6214",
+        "android_client_info": {
+          "package_name": "me.julianmejia.unabshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTS2JgqYlriBBbomiwgpFkV9GpgSjUPrM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
