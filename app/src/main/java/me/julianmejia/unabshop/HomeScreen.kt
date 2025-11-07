@@ -3,6 +3,7 @@ package me.julianmejia.unabshop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
@@ -60,7 +62,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
     // Estado para la lista de productos
     var productos by remember { mutableStateOf<List<Producto>>(emptyList()) }
 
-    // Escuchar cambios en Firestore (equivalente a observar datos para un RecyclerView)
+    // Escuchar cambios en Firestore (realtime)
     DisposableEffect(Unit) {
         val registration = db.collection("productos")
             .addSnapshotListener { snapshot, e ->
@@ -150,7 +152,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                 }
             }
 
-            // Formulario + lista en el resto de la pantalla
+            // Formulario + lista
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -247,7 +249,6 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                     )
                 }
 
-                // Listado de productos (equivalente al RecyclerView)
                 Text(
                     text = "Productos",
                     fontSize = 20.sp,
@@ -257,12 +258,30 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                         .padding(top = 16.dp, bottom = 8.dp)
                 )
 
+                // Lista de productos (equivalente a RecyclerView)
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     items(productos) { producto ->
-                        ProductoItem(producto = producto)
+                        ProductoItem(
+                            producto = producto,
+                            onDelete = { prod ->
+                                val id = prod.id
+                                if (id == null) {
+                                    mensaje = "No se pudo eliminar: id nulo"
+                                } else {
+                                    db.collection("productos")
+                                        .document(id)
+                                        .delete()
+                                        .addOnSuccessListener {
+                                            mensaje = "Producto eliminado ✅"
+                                        }
+                                        .addOnFailureListener { e ->
+                                            mensaje = "Error al eliminar: ${e.message}"
+                                        }
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -271,27 +290,56 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
 }
 
 @Composable
-fun ProductoItem(producto: Producto) {
+fun ProductoItem(
+    producto: Producto,
+    onDelete: (Producto) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 6.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            // Fondo más oscuro pero aún claro y limpio
+            containerColor = Color(0xFFFFF3E0) // naranja muy suave
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = producto.nombre,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-            Text(text = producto.descripcion)
-            Text(
-                text = "Precio: $${producto.precio}",
-                fontWeight = FontWeight.SemiBold
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = producto.nombre,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF222222)
+                )
+                Text(
+                    text = producto.descripcion,
+                    color = Color(0xFF444444)
+                )
+                Text(
+                    text = "Precio: $${producto.precio}",
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF222222)
+                )
+            }
+
+            IconButton(
+                onClick = { onDelete(producto) }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Eliminar producto",
+                    tint = Color(0xFFD32F2F) // rojo más oscuro y elegante
+                )
+            }
         }
     }
 }
