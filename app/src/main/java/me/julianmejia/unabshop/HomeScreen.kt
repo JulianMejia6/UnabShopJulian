@@ -2,11 +2,12 @@ package me.julianmejia.unabshop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -14,15 +15,19 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +57,34 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
     var precioTexto by remember { mutableStateOf("") }
     var mensaje by remember { mutableStateOf("") }
 
+    // Estado para la lista de productos
+    var productos by remember { mutableStateOf<List<Producto>>(emptyList()) }
+
+    // Escuchar cambios en Firestore (equivalente a observar datos para un RecyclerView)
+    DisposableEffect(Unit) {
+        val registration = db.collection("productos")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    mensaje = "Error al cargar productos: ${e.message}"
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    productos = snapshot.documents.map { doc ->
+                        Producto(
+                            id = doc.id,
+                            nombre = doc.getString("nombre") ?: "",
+                            descripcion = doc.getString("descripcion") ?: "",
+                            precio = doc.getDouble("precio") ?: 0.0
+                        )
+                    }
+                }
+            }
+
+        onDispose {
+            registration.remove()
+        }
+    }
+
     Scaffold(
         topBar = {
             MediumTopAppBar(
@@ -70,7 +103,6 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                         Icon(Icons.Filled.ShoppingCart, "Carrito")
                     }
                     IconButton(onClick = {
-                        // también podrías cerrar sesión desde el icono si quieres
                         auth.signOut()
                         onClickLogout()
                     }) {
@@ -84,8 +116,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                 )
             )
         },
-        bottomBar = {
-        }
+        bottomBar = { }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -119,7 +150,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                 }
             }
 
-            // Formulario para agregar producto
+            // Formulario + lista en el resto de la pantalla
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -134,10 +165,21 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
 
+                val textFieldColors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = Color(0xFF333333),
+                    unfocusedLabelColor = Color(0xFF555555),
+                    focusedBorderColor = Color(0xFFFF9900),
+                    unfocusedBorderColor = Color(0xFF888888),
+                    cursorColor = Color(0xFFFF9900)
+                )
+
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
                     label = { Text("Nombre") },
+                    colors = textFieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -147,6 +189,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                     value = descripcion,
                     onValueChange = { descripcion = it },
                     label = { Text("Descripción") },
+                    colors = textFieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -157,6 +200,7 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                     onValueChange = { precioTexto = it },
                     label = { Text("Precio") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = textFieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -176,13 +220,8 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
 
                             db.collection("productos")
                                 .add(producto)
-                                .addOnSuccessListener { docRef ->
-                                    // si quisieras guardar el id en el documento:
-                                    // db.collection("productos").document(docRef.id)
-                                    //     .update("id", docRef.id)
-
+                                .addOnSuccessListener {
                                     mensaje = "Producto guardado con éxito ✅"
-                                    // Limpia el formulario
                                     nombre = ""
                                     descripcion = ""
                                     precioTexto = ""
@@ -207,7 +246,52 @@ fun HomeScreen(onClickLogout: () -> Unit = {}) {
                         fontSize = 14.sp
                     )
                 }
+
+                // Listado de productos (equivalente al RecyclerView)
+                Text(
+                    text = "Productos",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(top = 16.dp, bottom = 8.dp)
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    items(productos) { producto ->
+                        ProductoItem(producto = producto)
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun ProductoItem(producto: Producto) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = producto.nombre,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            Text(text = producto.descripcion)
+            Text(
+                text = "Precio: $${producto.precio}",
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
